@@ -3,6 +3,7 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql._
+import org.apache.commons.io._
 import scala.concurrent.duration._
 import java.io._
 
@@ -17,7 +18,7 @@ object test3 {
     val input_dir = args(0)
     val input_file = input_dir + "/*.csv"
     // by default is temp_output_file
-    val output = args(1)
+    val output_dir = args(1)
 
     val spark = SparkSession
       .builder
@@ -37,12 +38,12 @@ object test3 {
       .foreach(new ForeachWriter[Row] {
             var fileWriter: FileWriter = _
             override def open(partitionId: Long, version: Long): Boolean = {
-             // FileUtils.forceMkdir(new File(s"/output"))
-              fileWriter = new FileWriter(new File(output))
+              FileUtils.forceMkdir(new File(output_dir))
+              fileWriter = new FileWriter(new File(output_dir+s"/${partitionId}"))
               true
             }
             override def process(record: Row): Unit = {
-              fileWriter.append(record.toSeq.mkString(","))
+              fileWriter.append(record.toSeq.mkString(",")+"\n")
               println(record.getAs("B"))
             }
             override def close(errorOrNull: Throwable): Unit = {
