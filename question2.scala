@@ -25,6 +25,29 @@ object StructuredStreaming {
     }
   }
 
+  def writeToLocal() : Unit = {
+    val query = wordCounts.writeStream.trigger(ProcessingTime(5.seconds))
+      .outputMode("complete")
+      .foreach(new ForeachWriter[Row] {
+
+      var fileWriter: FileWriter = _
+
+      override def process(value: Row): Unit = {
+        fileWriter.append(value.toSeq.mkString(","))
+      }
+
+      override def close(errorOrNull: Throwable): Unit = {
+        fileWriter.close()
+      }
+
+      override def open(partitionId: Long, version: Long): Boolean = {
+        FileUtils.forceMkdir(new File(s"/tmp/example/${partitionId}"))
+        fileWriter = new FileWriter(new File(s"/tmp/example/${partitionId}/temp"))
+        true
+      }
+    }).start()
+  }
+
   def main(args: Array[String]) {
     if (args.length < 2) {
       System.err.println("Usage: StructuredStreaming <input_dir> <output_path>")
@@ -56,7 +79,6 @@ object StructuredStreaming {
       .foreach(new ForeachWriter[Row] {
             //var fileWriter: FSDataOutputStream  = _
             var batch = 0
-
             override def open(partitionId: Long, version: Long): Boolean = {
                 batch += 1
                 true
